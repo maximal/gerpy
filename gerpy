@@ -1,0 +1,177 @@
+#!/usr/bin/env python
+
+"""Disclaimer
+Author feels really guilty for providing a tool that possibly could inspire someone to spam GitHub with fake commits. Every byte here is filled with this heavy burden sense.
+Please don't ever forget that hammer is a tool to nail nails, and not to hit your buddy in a face.
+On other hand, GitHub probably suffers much more scaled attacks, so a little joke program could be acceptable.
+Despite distributing under kinda free license, author still kindly remind you of your responsibility and asks not to do shit. :)
+"""
+
+import sys
+import argparse
+import subprocess
+import time
+import datetime as dt
+import yaml
+
+
+def args_parse():
+    parser = argparse.ArgumentParser(description='A tool to draw^W spam GitHub with fake commits.')
+
+    parser.add_argument('fname', metavar='FNAME', type=str,
+                        help='7x52 gerpymap file to process')
+    parser.add_argument('--palette', '-p', type=str, default='./palettes/sharp_edge.yml',
+                        help='palette file to use')
+    parser.add_argument('--current-max', '-c', default=10, type=int,
+                        help='MaximAL number of commits during single day to properly generate gradients map, defaults to 10')
+    parser.add_argument('--mode', '-m', default='integrate', type=str,
+                        help='Mode to fill the timeline, could be "overwhelm" (generate from current_max to 5 * current_max commits per day) or "integrate" (generate from zero to current_max commits per day)')
+    parser.add_argument('--yes-i-do-wish-to-spam-github', action='store_true',
+                        help='Confirmation of your burning desire to do bad things, gerpy would just print debug info and exit, if absent')
+    args = parser.parse_args()
+
+    return args
+
+
+class Gerpy(object):
+    def __init__(self, fname, palette_fname, current_max, mode, confirmation):
+        self.fname = fname
+        self.palette_fname = palette_fname
+        self.current_max = current_max
+        self.mode = mode
+        self.confirmation = confirmation
+
+        self.palette = self.palette_load(palette_fname)
+        self.map = self.map_load(fname)
+
+    def map_load(self, fname):
+        try:
+            with open(fname, 'r') as fp:
+                gerpymap = fp.read()
+                fp.close()
+        except:
+            return False
+
+        gerpymap = filter(None, gerpymap.split("\n"))
+        gerpymap = self.palette_check(gerpymap)
+
+        # checking sizes here
+        gerpymap = [l if len(l) == 52 else [] for l in gerpymap]
+        if len(gerpymap) != 7:
+            return False
+        return gerpymap
+
+    def palette_load(self, palette_fname):
+        try:
+            with open(palette_fname, 'r') as fp:
+                palette_human = yaml.load(fp)['palette']
+        except:
+            print("Failed to load palette file \"%s\", using default monochrome \"sharp_edge\" palette" % (palette_fname))
+            return {'': 0, '#': 4}
+
+        palette = {
+            palette_human['blank']: 0,
+            palette_human['low']: 1,
+            palette_human['mid']: 2,
+            palette_human['high']: 3,
+            palette_human['full']: 4
+        }
+
+        return palette
+
+    def palette_check(self, gerpymap):
+        gerpymap = [s if s not in self.palette else [] for s in gerpymap]
+        return gerpymap
+
+    def day_sunday_year_ago(self):
+        today = dt.date.today()
+        today_weekday = today.weekday()
+        last_sunday = today - dt.timedelta(today_weekday + 1)
+        last_sunday_year_ago = last_sunday - dt.timedelta(days=365)
+        return last_sunday_year_ago
+
+    def day_for_commit(self, last_sunday_year_ago, days):
+        day = last_sunday_year_ago + dt.timedelta(days=days)
+        return day.isoformat() + 'T01:00:00.000000+00:00'
+
+    def bash_build(self, tmp_dir_path='.'):
+        bash_fname = "%s/draw.sh" % (tmp_dir_path)
+
+        fp = open(bash_fname, 'w+')
+        if not fp:
+            return False
+
+        last_sunday_year_ago = self.day_sunday_year_ago()
+
+        l = ['#!/bin/bash']
+
+        y = 0
+        for weekdays in self.map:
+            x = 0
+            for saturation in weekdays:
+                day = 7 * y + x
+                m = self.palette[saturation]
+                if self.mode == 'overwhelm':
+                    n = self.current_max + m * self.current_max
+                elif self.mode == 'integrate':
+                    n = m * self.current_max / 4
+                else:
+                    return False  # unknown mode
+
+                # print(x, y)
+                fake_date = self.day_for_commit(last_sunday_year_ago, day)
+
+                for i in range(n):
+                    l.append("echo 'gerpy message for day # %s' >> payload" % (str(day)))
+                    l.append('git add payload')
+                    l.append("git commit -m 'gerpy message for day # %s' --date=%s" % (str(day), fake_date))
+
+                x += 1
+            y += 1
+
+        if day > 0:
+            l.append('git push origin master')
+
+        l.append('# self-destruction')
+        l.append("rm -f %s" % (bash_fname))
+
+        fp.write("\n".join(l))
+        fp.close()
+
+        return bash_fname
+
+
+if __name__ == '__main__':
+    args = args_parse()
+
+    gerpy = Gerpy(
+        args.fname,
+        args.palette,
+        args.current_max,
+        args.mode,
+        args.yes_i_do_wish_to_spam_github
+    )
+
+    if not gerpy.map:
+        print('Could not load gerpymap file, check if:')
+        print('    - file is readable')
+        print('    - size are 7 lines, 52 symbols each')
+        print('    - palette is valid, see README.md')
+        sys.exit(1)
+
+    bash_fname = gerpy.bash_build()
+
+    if not bash_fname:
+        print('Could not create temporary bash file, please, check source manually')
+        sys.exit(1)
+
+    command = '/bin/bash ' + bash_fname
+    if gerpy.confirmation:
+        subprocess.check_output(command.split(' '))
+    else:
+        print('Now you\'re able to execute this script:')
+        print('    ' + command)
+        print('... or just add the confirmation and re-run:')
+        print('    --yes-i-do-wish-to-spam-github')
+
+    sys.exit(0)
