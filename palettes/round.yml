@@ -1,0 +1,8 @@
+---
+
+palette:
+  blank: "."
+  low: "o"
+  mid: "*"
+  high: "0"
+  full: "@"
