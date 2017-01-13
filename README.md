@@ -36,15 +36,9 @@ ${EDITOR} maps/my.gerpymap
 
 # Palette
 
-From lesser (0) to full (5) saturation
+Palettes are stored in YAML files.
 
-```
-0 - .
-1 - o
-2 - *
-3 - 0
-4 - @
-```
+See `./palettes/` folder.
 
 # License
 
