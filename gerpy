@@ -105,6 +105,10 @@ class Gerpy(object):
 
         l = ['#!/bin/bash']
 
+        l.append('# nullify repo')
+        l.append('rm -rf git')
+        l.append('git init')
+
         y = 0
         for weekdays in self.map:
             x = 0
@@ -130,7 +134,7 @@ class Gerpy(object):
             y += 1
 
         if day > 0:
-            l.append('git push origin master')
+            l.append('git push -u origin master')
 
         l.append('# self-destruction')
         l.append("rm -f %s" % (bash_fname))
