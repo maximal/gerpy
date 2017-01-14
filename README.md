@@ -1,6 +1,6 @@
 # gerpy
 
-A tool to draw^W spam GitHub with fake commits. Sorry for that!
+A tool to draw spam pictures at GitHub activity charts with fake commits. Sorry for that!
 
 Inspired by [sijeko's](https://github.com/sijeko) [gerda](https://github.com/sijeko/gerda)
 
