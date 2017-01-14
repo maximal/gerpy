@@ -20,10 +20,12 @@ def args_parse():
 
     parser.add_argument('fname', metavar='FNAME', type=str,
                         help='7x52 gerpymap file to process')
+    parser.add_argument('repository', metavar='ORIGIN', type=str,
+                        help='repository address, like this: "git@github.com:weekend-software/gerpy.git"')
     parser.add_argument('--palette', '-p', type=str, default='./palettes/sharp_edge.yml',
                         help='palette file to use')
-    parser.add_argument('--current-max', '-c', default=10, type=int,
-                        help='MaximAL number of commits during single day to properly generate gradients map, defaults to 10')
+    parser.add_argument('--current-max', '-c', default=0, type=int,
+                        help='MaximAL number of commits during single day to properly generate gradients map, defaults to 0')
     parser.add_argument('--mode', '-m', default='integrate', type=str,
                         help='Mode to fill the timeline, could be "overwhelm" (generate from current_max to 5 * current_max commits per day) or "integrate" (generate from zero to current_max commits per day)')
     parser.add_argument('--yes-i-do-wish-to-spam-github', action='store_true',
@@ -34,12 +36,13 @@ def args_parse():
 
 
 class Gerpy(object):
-    def __init__(self, fname, palette_fname, current_max, mode, confirmation):
+    def __init__(self, fname, repository, palette_fname, current_max, mode, confirmation):
         self.fname = fname
         self.palette_fname = palette_fname
         self.current_max = current_max
         self.mode = mode
         self.confirmation = confirmation
+        self.repository = repository
 
         self.palette = self.palette_load(palette_fname)
         self.map = self.map_load(fname)
@@ -108,6 +111,7 @@ class Gerpy(object):
         l.append('# nullify repo')
         l.append('rm -rf git')
         l.append('git init')
+        l.append("git remote add origin %s" % (args.repository))
 
         y = 0
         for weekdays in self.map:
@@ -148,8 +152,12 @@ class Gerpy(object):
 if __name__ == '__main__':
     args = args_parse()
 
+    if not args.repository.startswith('git@github.com'):
+        print('WARNING, Repository URI looks wrong, still trying to proceed')
+
     gerpy = Gerpy(
         args.fname,
+        args.repository,
         args.palette,
         args.current_max,
         args.mode,
